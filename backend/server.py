@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -248,6 +248,35 @@ async def create_file(request: CreateFileRequest):
 
         full_path.write_text(request.content, encoding='utf-8')
         return file_info(full_path)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/files/upload", response_model=FileEntry)
+async def upload_file(file: UploadFile = File(...), path: str = Form("")):
+    """Upload a file. Optionally specify a subdirectory via `path`."""
+    try:
+        # Determine target directory
+        if path:
+            target_dir = get_safe_path(path)
+            if not target_dir.is_dir():
+                raise HTTPException(status_code=400, detail="Path is not a directory")
+        else:
+            target_dir = STORAGE_DIR
+
+        save_path = target_dir / file.filename
+
+        if save_path.exists():
+            raise HTTPException(status_code=400, detail="File already exists")
+
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail=f"File size exceeds {MAX_FILE_SIZE} bytes")
+
+        save_path.write_bytes(content)
+        return file_info(save_path)
     except HTTPException:
         raise
     except Exception as e:

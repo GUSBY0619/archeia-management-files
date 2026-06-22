@@ -170,6 +170,24 @@ const FileManager = () => {
     }
   };
 
+  const handleUploadFile = async (file, directory) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("path", directory || "");
+      await axios.post(`${API}/files/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Archivo subido");
+      reloadCurrentDir();
+      setCreateFileOpen(false);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast.error(error.response?.data?.detail || "Error al subir el archivo");
+      throw error;
+    }
+  };
+
   const handleCreateFolder = async (path) => {
     try {
       await axios.post(`${API}/folders`, { path });
@@ -401,6 +419,8 @@ const FileManager = () => {
         open={createFileOpen}
         onOpenChange={setCreateFileOpen}
         onCreate={handleCreateFile}
+        onUpload={handleUploadFile}
+        currentPath={currentPath}
       />
       <CreateFolderModal
         open={createFolderOpen}
