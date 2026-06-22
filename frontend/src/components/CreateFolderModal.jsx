@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Folder } from "lucide-react";
 
@@ -40,6 +41,9 @@ const CreateFolderModal = ({ open, onOpenChange, onCreate }) => {
             <Folder size={20} className="text-indigo-400" />
             Crear nueva carpeta
           </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Ingresá el nombre para la nueva carpeta.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-4">

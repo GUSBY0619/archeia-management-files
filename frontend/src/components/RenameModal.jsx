@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Edit } from "lucide-react";
 
@@ -48,6 +49,9 @@ const RenameModal = ({ open, onOpenChange, onRename, item }) => {
             <Edit size={20} className="text-indigo-400" />
             Renombrar {item.type === "folder" ? "carpeta" : "archivo"}
           </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            {item.type === "folder" ? "Ingresá el nuevo nombre para la carpeta." : "Ingresá el nuevo nombre para el archivo."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-4">

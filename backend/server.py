@@ -97,7 +97,7 @@ def get_safe_path(relative_path: str) -> Path:
 
 def file_info(path: Path, relative_to: Path = STORAGE_DIR) -> FileEntry:
     """Build a FileEntry for a single file (not folder)."""
-    rel = str(path.relative_to(relative_to))
+    rel = str(path.relative_to(relative_to)).replace("\\", "/")
     ext = path.suffix[1:] if path.suffix else None
     return FileEntry(name=path.name, path=rel, extension=ext)
 
@@ -115,7 +115,7 @@ def list_directory(base: Path) -> Tuple[List[FileEntry], List[FileEntry]]:
                 continue
 
             if item.is_dir():
-                dirs.append(FileEntry(name=item.name, path=str(item.relative_to(STORAGE_DIR)), extension=None))
+                dirs.append(FileEntry(name=item.name, path=str(item.relative_to(STORAGE_DIR)).replace("\\", "/"), extension=None))
             else:
                 files.append(file_info(item, STORAGE_DIR))
     except PermissionError:
@@ -161,6 +161,60 @@ async def list_files(search: Optional[str] = None, path: Optional[str] = None):
             result.directories = [d for d in result.directories if q in d.name.lower()]
 
         return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/files/upload", response_model=FileEntry)
+async def upload_file(file: UploadFile = File(...), path: str = Form("")):
+    """Upload a file. Optionally specify a subdirectory via `path`."""
+    try:
+        # Determine target directory
+        if path:
+            target_dir = get_safe_path(path)
+            if not target_dir.is_dir():
+                raise HTTPException(status_code=400, detail="Path is not a directory")
+        else:
+            target_dir = STORAGE_DIR
+
+        save_path = target_dir / file.filename
+
+        if save_path.exists():
+            raise HTTPException(status_code=400, detail="File already exists")
+
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail=f"File size exceeds {MAX_FILE_SIZE} bytes")
+
+        save_path.write_bytes(content)
+        return file_info(save_path)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.put("/files/rename")
+async def rename_file(request: RenameRequest):
+    """Rename a file or folder."""
+    if not is_safe_filename(request.new_name):
+        raise HTTPException(status_code=400, detail="Invalid name")
+
+    try:
+        old_path = get_safe_path(request.old_path)
+        if not old_path.exists():
+            raise HTTPException(status_code=404, detail="File or folder not found")
+
+        new_path = old_path.parent / request.new_name
+        if not str(new_path.resolve()).startswith(str(STORAGE_DIR.resolve())):
+            raise HTTPException(status_code=400, detail="Invalid path")
+        if new_path.exists():
+            raise HTTPException(status_code=400, detail="Already exists")
+
+        old_path.rename(new_path)
+        return file_info(new_path)
     except HTTPException:
         raise
     except Exception as e:
@@ -254,35 +308,6 @@ async def create_file(request: CreateFileRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_router.post("/files/upload", response_model=FileEntry)
-async def upload_file(file: UploadFile = File(...), path: str = Form("")):
-    """Upload a file. Optionally specify a subdirectory via `path`."""
-    try:
-        # Determine target directory
-        if path:
-            target_dir = get_safe_path(path)
-            if not target_dir.is_dir():
-                raise HTTPException(status_code=400, detail="Path is not a directory")
-        else:
-            target_dir = STORAGE_DIR
-
-        save_path = target_dir / file.filename
-
-        if save_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
-
-        content = await file.read()
-        if len(content) > MAX_FILE_SIZE:
-            raise HTTPException(status_code=400, detail=f"File size exceeds {MAX_FILE_SIZE} bytes")
-
-        save_path.write_bytes(content)
-        return file_info(save_path)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @api_router.put("/files/{file_path:path}", response_model=FileEntry)
 async def update_file(file_path: str, request: UpdateFileRequest):
     """Update file content."""
@@ -325,31 +350,6 @@ async def delete_file(file_path: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api_router.put("/files/rename")
-async def rename_file(request: RenameRequest):
-    """Rename a file or folder."""
-    if not is_safe_filename(request.new_name):
-        raise HTTPException(status_code=400, detail="Invalid name")
-
-    try:
-        old_path = get_safe_path(request.old_path)
-        if not old_path.exists():
-            raise HTTPException(status_code=404, detail="File or folder not found")
-
-        new_path = old_path.parent / request.new_name
-        if not str(new_path.resolve()).startswith(str(STORAGE_DIR.resolve())):
-            raise HTTPException(status_code=400, detail="Invalid path")
-        if new_path.exists():
-            raise HTTPException(status_code=400, detail="Already exists")
-
-        old_path.rename(new_path)
-        return file_info(new_path)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @api_router.post("/folders")
 async def create_folder(request: CreateFolderRequest):
     """Create a new folder."""
@@ -371,8 +371,6 @@ async def create_folder(request: CreateFolderRequest):
 
 # ── App setup ────────────────────────────────────────────────
 
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -380,6 +378,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(api_router)
 
 logging.basicConfig(
     level=logging.INFO,

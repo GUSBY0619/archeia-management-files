@@ -10,6 +10,18 @@ import RenameModal from "./RenameModal";
 import { Search, FilePlus, FolderPlus, ArrowLeft, Home } from "lucide-react";
 import { toast } from "sonner";
 
+// Extract a readable error message from an Axios error response.
+// FastAPI may return a string `detail` or an array of Pydantic validation errors.
+function extractErrorDetail(error) {
+  const detail = error.response?.data?.detail;
+  if (!detail) return null;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((e) => e.msg || JSON.stringify(e)).join("; ");
+  }
+  return JSON.stringify(detail);
+}
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
@@ -122,7 +134,8 @@ const FileManager = () => {
     if (isTextFile(ext)) {
       setIsLoading(true);
       try {
-        const response = await axios.get(`${API}/files/${file.path}`);
+        const encodedPath = file.path.split("/").map(encodeURIComponent).join("/");
+        const response = await axios.get(`${API}/files/${encodedPath}`);
         setSelectedFile(file);
         setFileContent(response.data.content);
         setShowTextEditor(true);
@@ -145,7 +158,8 @@ const FileManager = () => {
     if (!selectedFile) return;
     setIsSaving(true);
     try {
-      await axios.put(`${API}/files/${selectedFile.path}`, { content });
+      const encodedPath = selectedFile.path.split("/").map(encodeURIComponent).join("/");
+      await axios.put(`${API}/files/${encodedPath}`, { content });
       toast.success("Archivo guardado");
       reloadCurrentDir();
     } catch (error) {
@@ -165,7 +179,7 @@ const FileManager = () => {
       setCreateFileOpen(false);
     } catch (error) {
       console.error("Error creating file:", error);
-      toast.error(error.response?.data?.detail || "Error al crear el archivo");
+      toast.error(extractErrorDetail(error) || "Error al crear el archivo");
       throw error;
     }
   };
@@ -183,7 +197,7 @@ const FileManager = () => {
       setCreateFileOpen(false);
     } catch (error) {
       console.error("Error uploading file:", error);
-      toast.error(error.response?.data?.detail || "Error al subir el archivo");
+      toast.error(extractErrorDetail(error) || "Error al subir el archivo");
       throw error;
     }
   };
@@ -196,7 +210,7 @@ const FileManager = () => {
       setCreateFolderOpen(false);
     } catch (error) {
       console.error("Error creating folder:", error);
-      toast.error(error.response?.data?.detail || "Error al crear la carpeta");
+      toast.error(extractErrorDetail(error) || "Error al crear la carpeta");
       throw error;
     }
   };
@@ -204,7 +218,8 @@ const FileManager = () => {
   const handleDelete = async () => {
     if (!itemToDelete) return;
     try {
-      await axios.delete(`${API}/files/${itemToDelete.path}`);
+      const encodedDeletePath = itemToDelete.path.split("/").map(encodeURIComponent).join("/");
+      await axios.delete(`${API}/files/${encodedDeletePath}`);
       toast.success(
         itemToDelete.type === "folder" ? "Carpeta eliminada" : "Archivo eliminado"
       );
@@ -237,7 +252,7 @@ const FileManager = () => {
       setItemToRename(null);
     } catch (error) {
       console.error("Error renaming:", error);
-      toast.error(error.response?.data?.detail || "Error al renombrar");
+      toast.error(extractErrorDetail(error) || "Error al renombrar");
       throw error;
     }
   };

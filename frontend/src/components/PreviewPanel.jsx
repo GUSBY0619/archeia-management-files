@@ -37,7 +37,8 @@ export function isPreviewable(file) {
 
 const PreviewPanel = ({ file, onLoadText }) => {
   const ext = file.extension?.toLowerCase();
-  const rawUrl = `${API}/files/${file.path}/raw`;
+  // Encode each path segment so special chars (spaces, backslashes, unicode) work in URLs
+  const rawUrl = `${API}/files/${file.path.split("/").map(encodeURIComponent).join("/")}/raw`;
 
   // Image preview
   if (IMAGE_EXTENSIONS.has(ext)) {

@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { FileText, Upload } from "lucide-react";
 
@@ -89,6 +90,9 @@ const CreateFileModal = ({ open, onOpenChange, onCreate, onUpload, currentPath }
             <FileText size={20} className="text-indigo-400" />
             Crear o subir archivo
           </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Subí un archivo desde tu computadora o creá uno vacío.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
