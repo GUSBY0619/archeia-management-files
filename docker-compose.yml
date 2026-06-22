@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      - STORAGE_DIR=/data/files
+      - CORS_ORIGINS=*
+    volumes:
+      - "${FILES_PATH}:/data/files"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${PORT}:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge

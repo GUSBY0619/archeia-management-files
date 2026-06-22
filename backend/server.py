@@ -250,10 +250,14 @@ async def get_raw_file(file_path: str):
     # Previewable types → inline (show in iframe/browser)
     # Others → attachment (download)
     previewable = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".csv", ".json", ".md"}
-    disposition = "inline" if full_path.suffix.lower() in previewable else "attachment"
-    headers = {"Content-Disposition": f'{disposition}; filename="{full_path.name}"'}
+    disposition_type = "inline" if full_path.suffix.lower() in previewable else "attachment"
 
-    return FileResponse(path=str(full_path), media_type=mime, headers=headers)
+    return FileResponse(
+        path=str(full_path),
+        media_type=mime,
+        content_disposition_type=disposition_type,
+        filename=full_path.name,
+    )
 
 
 @api_router.get("/files/{file_path:path}", response_model=FileContent)
