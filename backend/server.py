@@ -220,7 +220,6 @@ async def rename_file(request: RenameRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @api_router.get("/files/{file_path:path}/raw")
 async def get_raw_file(file_path: str):
     """Serve a binary file (PDF, image, DOCX, etc.) with proper Content-Type."""
@@ -248,17 +247,19 @@ async def get_raw_file(file_path: str):
     mime = media_types.get(full_path.suffix.lower())
 
     # Previewable types → inline (show in iframe/browser)
-    # Others → attachment (download)
     previewable = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".csv", ".json", ".md"}
-    disposition_type = "inline" if full_path.suffix.lower() in previewable else "attachment"
+    
+    # Construir el header Content-Disposition manualmente
+    if full_path.suffix.lower() in previewable:
+        disposition = f'inline; filename="{full_path.name}"'
+    else:
+        disposition = f'attachment; filename="{full_path.name}"'
 
     return FileResponse(
         path=str(full_path),
         media_type=mime,
-        content_disposition_type=disposition_type,
-        filename=full_path.name,
+        headers={"Content-Disposition": disposition},
     )
-
 
 @api_router.get("/files/{file_path:path}", response_model=FileContent)
 async def read_file(file_path: str):
